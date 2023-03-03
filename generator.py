@@ -8,7 +8,7 @@ MESSAGES = [i.strip() for i in MESSAGES]
 OUTFILE = "test.bmp"
 
 class imageState:
-    def __init__(self, messages, mode="RGB", size=(256,256), endpoint_color=(0,191,255), text_color=(255,255,255)):
+    def __init__(self, messages, mode="RGB", size=(384,384), endpoint_color=(0,191,255), text_color=(255,255,255)):
         self.images = [Image.new(mode=mode, size=size)]
         self.size = size
         self.endpoint_color=endpoint_color
@@ -17,15 +17,15 @@ class imageState:
         starting_points = []                       # To prevent collisions
         for i in range(len(messages)):
             binary_msg = self.msg2bin(messages[i])
-            if len(binary_msg)+2 > size[0]:        # Ignore messages longer than the width of the screen
-                print(len(binary_msg))
+            if len(binary_msg)+2 > size[1]:        # Ignore messages longer than the length of the screen
+                print(f"Message too long: {messages[i]} - {len(binary_msg)} bits")
                 continue
             stateObject = {}
             stateObject['message'] = binary_msg
             for x in range(100):                   # 100 tries max, shouldn't reach this point
                 stateObject['starting_point'] = (random.randint(0, size[0]-1), random.randint(0, size[1]-1))
-                if stateObject['starting_point'][1] not in starting_points:
-                    starting_points.append(stateObject['starting_point'][1])
+                if stateObject['starting_point'][0] not in starting_points:
+                    starting_points.append(stateObject['starting_point'][0])
                     break
             stateObject['counter'] = 0 - (i * 30)   # Tier each of the messages so they start printing at different times
             self.stateObjects.append(stateObject)
@@ -46,18 +46,18 @@ class imageState:
                 newimage.putpixel(object['starting_point'], self.endpoint_color)
             elif object['counter'] <= len(object['message']):       # Draw message
                 if object['message'][object['counter']-1] == '1':
-                    newimage.putpixel(((object['starting_point'][0]+object['counter']) % self.size[0], object['starting_point'][1]), self.text_color)
+                    newimage.putpixel((object['starting_point'][0], (object['starting_point'][1]+object['counter']) % self.size[1]), self.text_color)
             elif object['counter'] == len(object['message']) + 1:   # Draw end pixel
-                newimage.putpixel(((object['starting_point'][0]+object['counter']) % self.size[0], object['starting_point'][1]), self.endpoint_color)
+                newimage.putpixel((object['starting_point'][0], (object['starting_point'][1]+object['counter']) % self.size[1]), self.endpoint_color)
             elif object['counter'] > len(object['message']) + 1:    # Fade out all pixels
                 for i in range(len(object['message'])+2):
-                    pixel = newimage.getpixel(((object['starting_point'][0]+i) % self.size[0], object['starting_point'][1]))
+                    pixel = newimage.getpixel((object['starting_point'][0], (object['starting_point'][1]+i) % self.size[1]))
                     newpixel = []
                     for val in pixel:
                         newpixel.append(val - 10)                   # Decrease in increments of 10, starting at the end of the count
                         if newpixel[-1] < 0:
                             newpixel[-1] = 0
-                    newimage.putpixel(((object['starting_point'][0]+i) % self.size[0], object['starting_point'][1]), tuple(newpixel))
+                    newimage.putpixel((object['starting_point'][0], (object['starting_point'][1]+i) % self.size[1]), tuple(newpixel))
             object['counter'] += 1
         self.images.append(newimage)
     
@@ -66,7 +66,7 @@ class imageState:
     
     def save_bmp(self, filename, output_folder='./img'):
         for i in range(len(self.images)):
-            image = self.images[i].resize((1024,1024), resample=Image.BOX)      # It's very slow to resize the images afterwards, but also very easy to program
+            image = self.images[i].resize((1536,1536), resample=Image.BOX)      # It's very slow to resize the images afterwards, but also very easy to program
             image.save(os.path.join(output_folder, str(i).zfill(3) + filename))
         # Once .bmp images are saved, they can be combined into a .gif using ffmpeg
         # ffmpeg -i %003d<filename_bmp> <filename_gif>
