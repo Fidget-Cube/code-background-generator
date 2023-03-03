@@ -1,0 +1,6 @@
+# Program output
+*.gif
+*.bmp
+
+# Secret messages
+messages.txt
