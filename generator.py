@@ -11,6 +11,8 @@ class imageState:
     def __init__(self, messages, mode="RGB", size=(384,384), endpoint_color=(0,191,255), text_color=(255,255,255)):
         self.images = [Image.new(mode=mode, size=size)]
         self.size = size
+        self.maxlength = 0
+        self.startindex = len(messages) * 5
         self.endpoint_color=endpoint_color
         self.text_color=text_color
         self.stateObjects = []
@@ -20,14 +22,19 @@ class imageState:
             if len(binary_msg)+2 > size[1]:        # Ignore messages longer than the length of the screen
                 print(f"Message too long: {messages[i]} - {len(binary_msg)} bits")
                 continue
+            if len(binary_msg) > self.maxlength:
+                self.maxlength = len(binary_msg)
             stateObject = {}
             stateObject['message'] = binary_msg
             for x in range(100):                   # 100 tries max, shouldn't reach this point
                 stateObject['starting_point'] = (random.randint(0, size[0]-1), random.randint(0, size[1]-1))
                 if stateObject['starting_point'][0] not in starting_points:
                     starting_points.append(stateObject['starting_point'][0])
+                    # Give messages a 1 column buffer
+                    starting_points.append(stateObject['starting_point'][0]+1)
+                    starting_points.append(stateObject['starting_point'][0]-1)
                     break
-            stateObject['counter'] = 0 - (i * 30)   # Tier each of the messages so they start printing at different times
+            stateObject['counter'] = 0 - (i * 5)   # Tier each of the messages so they start printing at different times
             self.stateObjects.append(stateObject)
 
     def msg2bin(self, msg):
@@ -59,6 +66,8 @@ class imageState:
                             newpixel[-1] = 0
                     newimage.putpixel((object['starting_point'][0], (object['starting_point'][1]+i) % self.size[1]), tuple(newpixel))
             object['counter'] += 1
+            if object['counter'] >= self.maxlength + 32:            # Once the drawing completes, restart it
+                object['counter'] = 0
         self.images.append(newimage)
     
     def save_gif(self, filename, output_folder='.'):
@@ -72,9 +81,9 @@ class imageState:
         # ffmpeg -i %003d<filename_bmp> <filename_gif>
     
     def main(self, filename):
-        self.draw()
-        while self.images[-1] != self.images[0]:
+        for i in range(((self.maxlength+32)*2)+self.startindex): # We will draw images up until the startindex plus twice the longest message (including endpoints and fade out frames)
             self.draw()
+        self.images = self.images[self.startindex:]             # And only save images past the startindex
         if ".bmp" in filename:
             self.save_bmp(filename)
         elif ".gif" in filename:
